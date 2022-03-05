@@ -22,7 +22,7 @@ class SettingsAdmin(admin.ModelAdmin):
 
 @admin.register(models.Account)
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ['user', 'tm_id', 'chat_id', 'username', 'contact']
+    list_display = ['name', 'tm_id', 'chat_id', 'username', 'contact']
     list_filter = ['faith_status']
     # readonly_fields = ['tm_id', 'chat_id']
 

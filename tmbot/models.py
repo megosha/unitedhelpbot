@@ -4,9 +4,7 @@ from django.contrib.auth.models import User
 
 import os
 from redis import Redis
-from tmbot.constants import REQUEST_STATUS, FAITH_STATUS
-
-
+from tmbot import constants
 
 
 # Create your models here.
@@ -42,36 +40,43 @@ class Settings(models.Model):
     def __str__(self):
         return f'{self.city}'
 
+    def menu_as_dict(self, type=None):
+        """ forms dict from button_name as key and interface name as value """
+        params = {'city__city':self.city} if not type else {'city__city':self.city, 'type':type}
+        return {key: value
+                for key, value in MainMenu.objects.filter(**params).values_list('button_name', 'interface_name').order_by("order")}
+
 
 class Account(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=50, verbose_name="Имя пользователя")
     tm_id = models.CharField(max_length=20, verbose_name="ID в телеграме")
     chat_id = models.CharField(max_length=20, verbose_name="Chat ID в телеграме")
-    username = models.CharField(max_length=50, default="", null=True, blank=True, verbose_name="Username в телеграме")
-    faith_status = models.PositiveSmallIntegerField(choices=FAITH_STATUS, default=0,verbose_name='Отношение к вере')
+    # username = models.CharField(max_length=50, default="", null=True, blank=True, verbose_name="Username в телеграме")
+    faith_status = models.PositiveSmallIntegerField(choices=constants.FAITH_STATUS, default=0,verbose_name='Отношение к вере')
     contact = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name="Дополнительный контакт")
 
     class Meta:
         verbose_name = "Пользователь"
-        verbose_name_plural = "Пользователь"
+        verbose_name_plural = "Пользователи"
 
     def __str__(self):
-        return f'{self.user.first_name} - {self.tm_id}'
+        return f'{self.name } - {self.tm_id}'
 
 
 class MainMenu(models.Model):
     button_name = models.CharField(max_length=20, verbose_name="Ключ (англ)")
     interface_name = models.CharField(max_length=50, verbose_name="Наименование пункта меню (рус)")
-    city = models.ForeignKey(City, null=True, on_delete=models.SET_NULL, verbose_name="Город")
+    city = models.ForeignKey(Settings, null=True, on_delete=models.SET_NULL, verbose_name="Город")
     order = models.PositiveSmallIntegerField(verbose_name="порядок отображения в Телеграме", default=10)
+    manager = models.ForeignKey(Account, null=True, blank=True, on_delete=models.SET_NULL,
+                                verbose_name="Менеджер категории")
+    type = models.CharField(max_length=20, null=True, blank=True, choices=constants.ACTION_TYPE, verbose_name="Тип обработки")
+
 
     class Meta:
         verbose_name = "Главное меню"
         verbose_name_plural = "Главное меню"
 
-    def actions(self):
-        """ forms dict from button_name as key and interface name as value """
-        pass
 
     def __str__(self):
         return f'{self.city} - {self.interface_name}'
@@ -85,6 +90,8 @@ class SubCategories(models.Model):
     order = models.PositiveSmallIntegerField(verbose_name="порядок отображения в Телеграме")
     manager = models.ForeignKey(Account, null=True, blank=True, on_delete=models.SET_NULL,
                                 verbose_name="Менеджер категории")
+    type = models.CharField(max_length=20, default='consult', choices=constants.ACTION_TYPE,
+                            verbose_name="Тип обработки")
 
     class Meta:
         verbose_name = "Подпункт меню"
@@ -97,18 +104,19 @@ class SubCategories(models.Model):
 
 class Message(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, verbose_name="Пользователь")
-    category = models.ForeignKey(SubCategories, on_delete=models.DO_NOTHING, )
+    category = models.ForeignKey(MainMenu, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Категория")
+    subcategory = models.ForeignKey(SubCategories, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Подкатегория")
     last_msg_id = models.CharField(max_length=20, verbose_name="ID последнего сообщения в телеграме")
     last_message = models.CharField(max_length=20, verbose_name="Тело последнего сообщения в телеграме")
     date_create = models.DateTimeField(auto_now=True)
-    request_status = models.PositiveSmallIntegerField(verbose_name="Код статуса ответа на обращение", choices=REQUEST_STATUS)
+    request_status = models.PositiveSmallIntegerField(verbose_name="Код статуса ответа на обращение", choices=constants.REQUEST_STATUS)
 
     class Meta:
         verbose_name = "Сообщение"
         verbose_name_plural = "Сообщения"
 
     def __str__(self):
-        return f'{self.category.parent_category.city} - {self.account.user.first_name} - {self.category.interface_name}'
+        return f'{self.category.parent_category.city} - {self.account.name} - {self.category.interface_name}'
 
 """"""""""""""""""""""""""""""
 
