@@ -40,11 +40,15 @@ class Settings(models.Model):
     def __str__(self):
         return f'{self.city}'
 
-    def menu_as_dict(self, type=None):
+    def menu_as_dict(self):
         """ forms dict from button_name as key and interface name as value """
-        params = {'city__city':self.city} if not type else {'city__city':self.city, 'type':type}
         return {key: value
-                for key, value in MainMenu.objects.filter(**params).values_list('button_name', 'interface_name').order_by("order")}
+                for key, value in MainMenu.objects.filter(city__city=self.city).values_list('button_name', 'interface_name').order_by("order")}
+
+    def subcategories(self, kind=None):
+        params = {'city__city':self.city} if not kind else {'city__city':self.city, 'kind':kind}
+        return {key: value
+                for key, value in SubCategories.objects.filter(**params).values_list('button_name', 'interface_name').order_by("order")}
 
 
 class Account(models.Model):
@@ -68,9 +72,9 @@ class MainMenu(models.Model):
     interface_name = models.CharField(max_length=50, verbose_name="Наименование пункта меню (рус)")
     city = models.ForeignKey(Settings, null=True, on_delete=models.SET_NULL, verbose_name="Город")
     order = models.PositiveSmallIntegerField(verbose_name="порядок отображения в Телеграме", default=10)
-    manager = models.ForeignKey(Account, null=True, blank=True, on_delete=models.SET_NULL,
-                                verbose_name="Менеджер категории")
-    type = models.CharField(max_length=20, null=True, blank=True, choices=constants.ACTION_TYPE, verbose_name="Тип обработки")
+    # manager = models.ForeignKey(Account, null=True, blank=True, on_delete=models.SET_NULL,
+    #                             verbose_name="Менеджер категории")
+    # type = models.CharField(max_length=20, null=True, blank=True, choices=constants.ACTION_TYPE, verbose_name="Тип обработки")
 
 
     class Meta:
@@ -90,7 +94,7 @@ class SubCategories(models.Model):
     order = models.PositiveSmallIntegerField(verbose_name="порядок отображения в Телеграме")
     manager = models.ForeignKey(Account, null=True, blank=True, on_delete=models.SET_NULL,
                                 verbose_name="Менеджер категории")
-    type = models.CharField(max_length=20, default='consult', choices=constants.ACTION_TYPE,
+    kind = models.CharField(max_length=20, default='consult', choices=constants.ACTION_TYPE,
                             verbose_name="Тип обработки")
 
     class Meta:
@@ -104,7 +108,7 @@ class SubCategories(models.Model):
 
 class Message(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, verbose_name="Пользователь")
-    category = models.ForeignKey(MainMenu, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Категория")
+    # category = models.ForeignKey(MainMenu, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Категория")
     subcategory = models.ForeignKey(SubCategories, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Подкатегория")
     last_msg_id = models.CharField(max_length=20, verbose_name="ID последнего сообщения в телеграме")
     last_message = models.CharField(max_length=20, verbose_name="Тело последнего сообщения в телеграме")
@@ -116,7 +120,7 @@ class Message(models.Model):
         verbose_name_plural = "Сообщения"
 
     def __str__(self):
-        return f'{self.category.parent_category.city} - {self.account.name} - {self.category.interface_name}'
+        return f'{self.account.name} - {self.subcategory.interface_name}'
 
 """"""""""""""""""""""""""""""
 

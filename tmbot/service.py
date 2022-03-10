@@ -61,7 +61,7 @@ def init_bot(bot):
     def forward_trouble(users, message, action=None, admin=False):
         account = users
         chat_id = message.chat.id
-        last_message = account.message_set.filter(action=action).last()
+        last_message = account.message_set.filter(subcategory=action).last()
         if admin:
             msg = (f'❌ ПОЛЬЗОВАТЕЛЬ НЕ ПОЛУЧИЛ КОНСУЛЬТАЦИЮ!\n'
                    f'Заявка №: {chat_id}_{last_message.last_message_id}"\n'
@@ -73,7 +73,7 @@ def init_bot(bot):
                    f'Дата обращения: {last_message.date_create}\n'
                    f'Сообщение: {last_message.last_message}')
         else:
-            msg = (f'Заявка №: "{chat_id}_{last_message.last_message_id}"\n '
+            msg = (f'Заявка №: "{chat_id}_{last_message.last_msg_id}"\n '
            f'Пользователь: @{message.chat.username}\n'
            f'Имя: {account.name}\n'
            f'Статус (верующий/неверующий): {account.faith_status}\n'
@@ -98,9 +98,8 @@ def init_bot(bot):
         params = {'account':account,
                   "last_msg_id":message.id,
                   "last_message":message.text,
-                  "request_status":1}
-        key = 'category' if isinstance(action, models.MainMenu) else 'subcategory'
-        params[key] = action
+                  "request_status":1,
+                  'subcategory':action}
         last_message = models.Message.objects.create(**params)
 
         msg, k_wargs = forward_trouble(account, message, action)
@@ -136,6 +135,12 @@ def init_bot(bot):
         bot.clear_step_handler(call.message)
         bot.register_next_step_handler(sent, get_trouble, action=action)
 
+    def subcategory_proceed(call, data):
+        answer = f'Вы выбрали пункт: "{current_bot.menu_as_dict()[data]}"\n\n' \
+                 f'📨 Опишите, пожалуйста, свою ситуацию в ответе ОДНИМ текстовым сообщением 👇👇👇'
+        action = models.SubCategories.objects.filter(button_name=data).first()
+        consult_processing(call, answer, action)
+
 
     @bot.callback_query_handler(func=lambda call: True)
     def query_handler(call):
@@ -152,11 +157,20 @@ def init_bot(bot):
                     bot.send_message(call.message.chat.id, answer,
                                      reply_markup=helpers.returntomainmenu_keyboard(show_website=True), parse_mode="HTML")
                 #todo else return menu
-            elif call.data in current_bot.menu_as_dict(type='consult').keys():
-                """ если выбран пункт главного меню, у которого нет потомков и требуется ручная обработка """
-                answer = f'Вы выбрали пункт:"{current_bot.menu_as_dict()[call.data]}"\n\n📨 Опишите, пожалуйста, свою ситуацию в ответе ОДНИМ текстовым сообщением 👇👇👇'
-                action = models.MainMenu.objects.filter(button_name=call.data).first()
-                consult_processing(call, answer, action)
+
+            elif call.data in current_bot.menu_as_dict().keys():
+                # bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                subcategories = list(current_bot.mainmenu_set.filter(button_name=call.data).values_list(
+                    'subcategories__button_name', 'subcategories__interface_name'))
+                if len(subcategories) == 1:
+                    subcategory_proceed(call, subcategories[0][0])
+                else:
+                    subcategories = {button: interface for button, interface in subcategories}
+                    bot.send_message(chat_id, f"qwe",
+                                     reply_markup=helpers.render_keyboard(subcategories))
+
+            elif call.data in current_bot.subcategories(kind='consult').keys():
+                subcategory_proceed(call, call.data)
             elif call.data == 'menu':
                 account = models.Account.objects.filter(chat_id=chat_id).first()
                 if not account.faith_status:
@@ -184,7 +198,8 @@ def init_bot(bot):
 
             elif call.data == 'ignored':
                 message = call.message
-                chat_id = message.chat.id
+
+                # mes = models.Message.objects.filter(account)
 
                 users = models.RDB()
                 users.change_item(chat_id, "request", "3")

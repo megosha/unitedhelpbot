@@ -22,7 +22,7 @@ class SettingsAdmin(admin.ModelAdmin):
 
 @admin.register(models.Account)
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ['name', 'tm_id', 'chat_id', 'username', 'contact']
+    list_display = ['name', 'tm_id', 'chat_id', 'contact']
     list_filter = ['faith_status']
     # readonly_fields = ['tm_id', 'chat_id']
 
@@ -43,7 +43,7 @@ class SubCategoriesAdmin(admin.ModelAdmin):
 
 @admin.register(models.Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ['account', 'category', 'request_status']
+    list_display = ['account', 'subcategory','request_status']
     list_display_links = ['account']
-    list_filter = ['request_status', 'category']
-    readonly_fields = ['account', 'category', 'last_msg_id', 'last_message', 'date_create', 'request_status']
+    list_filter = ['request_status', 'subcategory']
+    readonly_fields = ['account', 'last_msg_id', 'subcategory', 'last_message', 'date_create', 'request_status']
