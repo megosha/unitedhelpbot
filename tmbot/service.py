@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 # from pathlib import Path
 from threading import Thread
@@ -20,6 +20,7 @@ logging.basicConfig(filename=logfile, filemode='a')
 
 def init_bot(bot):
     current_bot = models.Settings.objects.filter(bot_token=bot.token).first()
+    #todo validate current bot instance and existance else send message that bot works incorrect
     def get_name(message, error=False):
         if error:
             msg = "Пожалуйста, укажите Ваше имя корректно (имя должно содержать только буквы)"
@@ -41,25 +42,13 @@ def init_bot(bot):
                                  reply_markup=helpers.render_keyboard(constants.STATUS))
                 #TODO в меню проверять, есть ли статус, запрашивать перед обработкой
                 #TODO удалять предыдущие сообщения
-
-            # users = models.RDB()
-            # chat_id = message.chat.id
-            # tm_id = message.from_user.id
-
-            # m_id = message.id
-            # if helpers.name_is_valid(name):
-            #     body = users.init_item(chat_id, tm_id, name, m_id)
-            #     users.set_item(chat_id, body)
-            #     bot.send_message(message.chat.id, f"❓ {name}, посещаете ли Вы церковь?",
-            #                      reply_markup=helpers.render_keyboard(constants.STATUS))
             else:
                 get_name(message, error=True)
         else:
             send_welcome(message)
 
 
-    def forward_trouble(users, message, action=None, admin=False):
-        account = users
+    def forward_trouble(account: models.Account, message, action, admin=False):
         chat_id = message.chat.id
         last_message = account.message_set.filter(subcategory=action).last()
         if admin:
@@ -67,18 +56,18 @@ def init_bot(bot):
                    f'Заявка №: {chat_id}_{last_message.last_message_id}"\n'
                    f'Пользователь: @{message.chat.username}\n'
                    f'Имя: {account.name}\n'
-                   f'Статус (верующий/неверующий): {account.faith_status}\n'
+                   f'Статус (верующий/неверующий): {account.get_faith_status_display()}\n'
                    f'Доп. контакт: {account.contact}\n'
-                   f'Тема: {action.interface_name if action is not None else ""}\n'
+                   f'Тема: {action.interface_name }\n'
                    f'Дата обращения: {last_message.date_create}\n'
                    f'Сообщение: {last_message.last_message}')
         else:
-            msg = (f'Заявка №: "{chat_id}_{last_message.last_msg_id}"\n '
+            msg = (f'Заявка №: "{chat_id}_{last_message.last_msg_id}"\n'
            f'Пользователь: @{message.chat.username}\n'
            f'Имя: {account.name}\n'
-           f'Статус (верующий/неверующий): {account.faith_status}\n'
+           f'Статус (верующий/неверующий): {account.get_faith_status_display()}\n'
            f'Доп. контакт: {account.contact}\n'
-           f'Тема: {action.interface_name if action is not None else ""}\n'
+           f'Тема: {action.interface_name }\n'
            f'Сообщение: {last_message.last_message}')
 
         if not account.contact:
@@ -136,7 +125,7 @@ def init_bot(bot):
         bot.register_next_step_handler(sent, get_trouble, action=action)
 
     def subcategory_proceed(call, data):
-        answer = f'Вы выбрали пункт: "{current_bot.menu_as_dict()[data]}"\n\n' \
+        answer = f'Вы выбрали пункт: "{current_bot.subcategories()[data]}"\n\n' \
                  f'📨 Опишите, пожалуйста, свою ситуацию в ответе ОДНИМ текстовым сообщением 👇👇👇'
         action = models.SubCategories.objects.filter(button_name=data).first()
         consult_processing(call, answer, action)
@@ -155,7 +144,8 @@ def init_bot(bot):
                     answer = current_bot.contacts
                     bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
                     bot.send_message(call.message.chat.id, answer,
-                                     reply_markup=helpers.returntomainmenu_keyboard(show_website=True), parse_mode="HTML")
+                                     reply_markup=helpers.returntomainmenu_keyboard(
+                                         show_website=True, current_bot=current_bot), parse_mode="HTML")
                 #todo else return menu
 
             elif call.data in current_bot.menu_as_dict().keys():
@@ -171,17 +161,17 @@ def init_bot(bot):
 
             elif call.data in current_bot.subcategories(kind='consult').keys():
                 subcategory_proceed(call, call.data)
-            elif call.data == 'menu':
-                account = models.Account.objects.filter(chat_id=chat_id).first()
-                if not account.faith_status:
-                    # bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                    bot.send_message(chat_id, f"❓ {account.name}, посещаете ли Вы церковь?",
-                                     reply_markup=helpers.render_keyboard(constants.STATUS))
-                else:
-                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                    menu = current_bot.menu_as_dict()
-                    bot.send_message(chat_id, 'Выберите тему для Вашего обращения',
-                                     reply_markup=helpers.render_keyboard(menu, True))
+            # elif call.data == 'menu':
+            #     account = models.Account.objects.filter(chat_id=chat_id).first()
+            #     if not account.faith_status:
+            #         bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+            #         bot.send_message(chat_id, f"❓ {account.name}, посещаете ли Вы церковь?",
+            #                          reply_markup=helpers.render_keyboard(constants.STATUS))
+            #     else:
+            #         bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+            #         menu = current_bot.menu_as_dict()
+            #         bot.send_message(chat_id, 'Выберите тему для Вашего обращения',
+            #                          reply_markup=helpers.render_keyboard(menu, True))
             elif call.data in constants.STATUS.keys():
                 account = models.Account.objects.filter(chat_id=chat_id).first()
                 if not account:
@@ -196,39 +186,44 @@ def init_bot(bot):
                                  f'❓На какую тему Ваш вопрос? 👇\n(Все консультации для Вас бесплатны 🔥)',
                                  reply_markup=helpers.render_keyboard(settings.ACTIONS, True))
 
-            elif call.data == 'ignored':
-                message = call.message
+            elif call.data.startswith('ignored_'):
+                message_pk = helpers.get_id(call.data)
 
-                # mes = models.Message.objects.filter(account)
+                message_obj = models.Message.objects.filter(pk=message_pk).first()
+                message_obj.request_status = 4
+                message_obj.save()
 
-                users = models.RDB()
-                users.change_item(chat_id, "request", "3")
+                msg, k_wargs = forward_trouble(message_obj.account, call.message, message_obj.subcategory, admin=True)
 
-                msg, k_wargs = forward_trouble(users, message, admin=True)
-
-                bot.send_message(models.get_env_value('admin'), msg, **k_wargs)
-                bot.forward_message(models.get_env_value("admin"), chat_id,
-                                    message_id=users.get_item_value(chat_id, "last_message_id"))
+                bot.send_message(models.UppperSettings.objects.filter().first().chat_id, msg, **k_wargs)
+                bot.send_message(current_bot.pastor.chat_id, msg, **k_wargs)
+                bot.forward_message(current_bot.pastor.chat_id, chat_id,
+                                    message_id=message_obj.last_msg_id)
 
                 bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
                 answer = 'Ваше обращение отправлено специалисту повторно. Просим прощения за задержку консультации 😔🌷'
-                bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True))
+                bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True,
+                                                                                                 current_bot=current_bot))
                 logging.warning(f'{datetime.now} - Ignored Button - processed')
 
-            elif call.data == 'answered':
-                chat_id = call.message.chat.id
-                users = models.RDB()
-                users.change_item(chat_id, "request", "2")
+            elif call.data.startswith('answered_'):
+                message_pk = helpers.get_id(call.data)
+
+                message_obj = models.Message.objects.filter(pk=message_pk).first()
+                message_obj.request_status = 3
+                message_obj.save()
+
                 bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
                 answer = ('Благодарим за доверие к нам в Вашей ситуации! 🙏'
                           'При возникновении вопросов всегда готовы Вам помочь! 💒\n\n'
                           'Пусть Господь благословит Вас!')
-                bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True))
+                bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True,
+                                                                                                 current_bot=current_bot))
                 logging.warning(f'{datetime.now} - Answered Button - processed')
             elif call.data.startswith('private_'):
                 btn_id = call.data
                 manager_chat = call.message.chat.id
-                chat_id = btn_id[btn_id.rfind('_') + 1:]
+                chat_id = helpers.get_id(btn_id)
                 get_contact = bot.send_message(
                     chat_id,
                     f'⚠️ Ваш профиль в telegram приватный. \n\nНапишите, пожалуйста, в ответе одним сообщением '
@@ -237,7 +232,16 @@ def init_bot(bot):
                 bot.register_next_step_handler(get_contact, additional_contact, manager_chat=manager_chat)
                 bot.edit_message_reply_markup(chat_id=manager_chat, message_id=call.message.id, reply_markup=None)
             else:
-                pass
+                account = models.Account.objects.filter(chat_id=chat_id).first()
+                if not account.faith_status:
+                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                    bot.send_message(chat_id, f"❓ {account.name}, посещаете ли Вы церковь?",
+                                     reply_markup=helpers.render_keyboard(constants.STATUS))
+                else:
+                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                    menu = current_bot.menu_as_dict()
+                    bot.send_message(chat_id, 'Выберите тему для Вашего обращения',
+                                     reply_markup=helpers.render_keyboard(menu, True))
         except Exception as err:
             logging.error(f'{datetime.now()} - {helpers._get_detail_exception_info(err)}')
 
@@ -245,10 +249,11 @@ def init_bot(bot):
     def additional_contact(message, manager_chat):
         bot.forward_message(manager_chat, message.chat.id, message_id=message.id)
         contact = message.text
-        users = models.RDB()
-        users.change_item(message.chat.id, "contact", contact)
+
+        models.Account.objects.filter(chat_id=message.chat.id).update(contact=contact)
+
         bot.reply_to(message,
-                     f'Спасибо, {users.get_item_value(message.chat.id, "name")}! Ваш контакт передан, скоро с Вами свяжутся 📲',
+                     f'Ваш контакт передан, скоро с Вами свяжутся 📲',
                      reply_markup=helpers.returntomainmenu_keyboard())
 
 
@@ -285,33 +290,40 @@ def init_bot(bot):
     def feedback_checker():
         sleep_time = 1000
         logging.warning(f'{datetime.now()} - start feedback_checker')
-        users = models.RDB()
+
+
+        params = {'subcategory__parent_category__city__city':current_bot.city,
+                  'date_create__lte':datetime.now()-timedelta(days=1),
+                  'request_status':2,
+                  }
+        messages = models.Message.objects.filter(**params)
+
         while True:
             logging.warning(f'{datetime.now()} - start feedback_checker cycle')
-            for chat_id in models.db.scan_iter('user:*'):
-                if str(chat_id).startswith('-'):
-                    return None
-                # obj = users.get_object(chat_id)
-                request_status = users.get_item_value(chat_id, 'request')
-                last_message_date = users.get_item_value(chat_id, 'last_message_date')
-                name = users.get_item_value(chat_id, 'name')
 
-                if request_status == '2' and last_message_date:
-                    dt_format = '%Y-%m-%d %H:%M:%S.%f'
-                    dt = datetime.strptime(last_message_date, dt_format)
-                    if abs(datetime.now() - dt).days >= 1:
-                        # if abs(datetime.now() - dt).days < 1:
-                        try:
-                            bot.send_message(chat_id.decode(), f'Здравствуйте, {name}! '
-                                                               f'Недавно Вы оставляли обращение для консультации.\n\n'
-                                                               f'С Вами связались по Вашему обращению? (выберите соответствующий вариант ниже 👇)',
-                                             reply_markup=helpers.render_keyboard(constants.FEEDBACK))
-                        except telebot.apihelper.ApiTelegramException:
-                            pass
-                        users.change_item(chat_id.decode(), "request", "4")
-                        logging.warning(
-                            f'{datetime.now()} - asking for feedback - USER_ID {users.get_item_value(chat_id, "tm_id")} - '
-                            f'CHAT_ID - {chat_id.decode()}')
+            for message in messages:
+                chat_id = message.account.chat_id
+                name = message.account.name
+                subcategory_title = message.subcategory.interface_name
+
+                expect_answer = models.Message.objects.filter(account=message.account, request_status=5).exists()
+                if not expect_answer:
+                    FEEDBACK = {f"answered_{message.pk}": "✅  Да, со мной связались",
+                                f"ignored_{message.pk}": "❌  Нет, я не получил ответа"
+                                }
+                    try:
+                        bot.send_message(chat_id, f'Здравствуйте, {name}! '
+                                                  f'Недавно Вы обратились по теме «{subcategory_title}».\n\n'
+                                                  f'С Вами связались по Вашему обращению? (выберите соответствующий вариант ниже 👇)',
+                                         reply_markup=helpers.render_keyboard(FEEDBACK))
+                    except telebot.apihelper.ApiTelegramException:
+                        pass
+
+                    message.request_status = 5
+                    message.save()
+                    logging.warning(
+                        f'{datetime.now()} - asking for feedback - USER_ID {message.account.tm_id} - '
+                        f'CHAT_ID - {chat_id}')
             logging.warning(
                 f'{datetime.now()} - sleep for {sleep_time} seconds')
             sleep(sleep_time)

@@ -31,6 +31,7 @@ class Settings(models.Model):
     pastor = models.ForeignKey('Account', on_delete=models.CASCADE, verbose_name="Пастор", related_name='pastor')
     bot_token = models.CharField(max_length=255, default=None, null=True, blank=True, verbose_name="bot token")
     contacts = models.TextField(null=True, blank=True, verbose_name="Текст с контактами")
+    website = models.TextField(default='church22.ru', blank=True, verbose_name="Текст с контактами")
     greeting = models.TextField(null=True, blank=True, verbose_name="Текст приветствия")
     greeting_cover = models.FileField(upload_to='static/', blank=True, default=None, verbose_name="Обложка")
 
@@ -46,7 +47,7 @@ class Settings(models.Model):
                 for key, value in MainMenu.objects.filter(city__city=self.city).values_list('button_name', 'interface_name').order_by("order")}
 
     def subcategories(self, kind=None):
-        params = {'city__city':self.city} if not kind else {'city__city':self.city, 'kind':kind}
+        params = {'parent_category__city__city':self.city} if not kind else {'parent_category__city__city':self.city, 'kind':kind}
         return {key: value
                 for key, value in SubCategories.objects.filter(**params).values_list('button_name', 'interface_name').order_by("order")}
 
@@ -55,7 +56,6 @@ class Account(models.Model):
     name = models.CharField(max_length=50, verbose_name="Имя пользователя")
     tm_id = models.CharField(max_length=20, verbose_name="ID в телеграме")
     chat_id = models.CharField(max_length=20, verbose_name="Chat ID в телеграме")
-    # username = models.CharField(max_length=50, default="", null=True, blank=True, verbose_name="Username в телеграме")
     faith_status = models.PositiveSmallIntegerField(choices=constants.FAITH_STATUS, default=0,verbose_name='Отношение к вере')
     contact = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name="Дополнительный контакт")
 
@@ -72,9 +72,6 @@ class MainMenu(models.Model):
     interface_name = models.CharField(max_length=50, verbose_name="Наименование пункта меню (рус)")
     city = models.ForeignKey(Settings, null=True, on_delete=models.SET_NULL, verbose_name="Город")
     order = models.PositiveSmallIntegerField(verbose_name="порядок отображения в Телеграме", default=10)
-    # manager = models.ForeignKey(Account, null=True, blank=True, on_delete=models.SET_NULL,
-    #                             verbose_name="Менеджер категории")
-    # type = models.CharField(max_length=20, null=True, blank=True, choices=constants.ACTION_TYPE, verbose_name="Тип обработки")
 
 
     class Meta:
@@ -108,7 +105,6 @@ class SubCategories(models.Model):
 
 class Message(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, verbose_name="Пользователь")
-    # category = models.ForeignKey(MainMenu, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Категория")
     subcategory = models.ForeignKey(SubCategories, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Подкатегория")
     last_msg_id = models.CharField(max_length=20, verbose_name="ID последнего сообщения в телеграме")
     last_message = models.CharField(max_length=20, verbose_name="Тело последнего сообщения в телеграме")
@@ -125,45 +121,44 @@ class Message(models.Model):
 """"""""""""""""""""""""""""""
 
 
-def get_env_value(key):
-    return os.environ.get(key)
 
 
-db = Redis.from_url(get_env_value('REDIS'))
 
-
-def remove_db():
-    for key in db.scan_iter('*'):
-        db.delete(key)
-
-
-class RDB():
-    def init_item(self, chat_id, tm_id, name, m_id):
-        structure = {"tm_id": tm_id,
-                     "name": name,
-                     "chat_id": chat_id,
-                     "last_message_id": m_id,
-                     "request": 0,
-                     }
-
-        return structure
-
-    def set_item(self, chat_id, body: dict):
-        for key, value in body.items():
-            db.hset(chat_id, key, value)
-        # return db.set(chat_id, body)
-
-    def get_item_value(self, chat_id, key):
-        if value := db.hget(chat_id, key):
-            return value.decode()
-        return None
-
-    def get_object(self, chat_id):
-        return db.hgetall(chat_id)
-
-    def change_item(self, chat_id: int, key: str, val: str):
-        db.hset(chat_id, key, val)
-
-    def remove_all(self):
-        for key in db.scan_iter('*'):
-            db.delete(key)
+# db = Redis.from_url(get_env_value('REDIS'))
+#
+#
+# def remove_db():
+#     for key in db.scan_iter('*'):
+#         db.delete(key)
+#
+#
+# class RDB():
+#     def init_item(self, chat_id, tm_id, name, m_id):
+#         structure = {"tm_id": tm_id,
+#                      "name": name,
+#                      "chat_id": chat_id,
+#                      "last_message_id": m_id,
+#                      "request": 0,
+#                      }
+#
+#         return structure
+#
+#     def set_item(self, chat_id, body: dict):
+#         for key, value in body.items():
+#             db.hset(chat_id, key, value)
+#         # return db.set(chat_id, body)
+#
+#     def get_item_value(self, chat_id, key):
+#         if value := db.hget(chat_id, key):
+#             return value.decode()
+#         return None
+#
+#     def get_object(self, chat_id):
+#         return db.hgetall(chat_id)
+#
+#     def change_item(self, chat_id: int, key: str, val: str):
+#         db.hset(chat_id, key, val)
+#
+#     def remove_all(self):
+#         for key in db.scan_iter('*'):
+#             db.delete(key)
