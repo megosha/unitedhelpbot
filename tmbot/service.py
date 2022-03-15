@@ -40,8 +40,6 @@ def init_bot(bot):
                     account.save()
                 bot.send_message(message.chat.id, f"❓ {name}, посещаете ли Вы церковь?",
                                  reply_markup=helpers.render_keyboard(constants.STATUS))
-                #TODO в меню проверять, есть ли статус, запрашивать перед обработкой
-                #TODO удалять предыдущие сообщения
             else:
                 get_name(message, error=True)
         else:
@@ -53,7 +51,7 @@ def init_bot(bot):
         last_message = account.message_set.filter(subcategory=action).last()
         if admin:
             msg = (f'❌ ПОЛЬЗОВАТЕЛЬ НЕ ПОЛУЧИЛ КОНСУЛЬТАЦИЮ!\n'
-                   f'Заявка №: {chat_id}_{last_message.last_message_id}"\n'
+                   f'Заявка №: {chat_id}_{last_message.last_msg_id}"\n'
                    f'Пользователь: @{message.chat.username}\n'
                    f'Имя: {account.name}\n'
                    f'Статус (верующий/неверующий): {account.get_faith_status_display()}\n'
@@ -118,9 +116,11 @@ def init_bot(bot):
             bot.forward_message(current_bot.pastor.tm_id, chat_id, message_id=message.id)
 
     def consult_processing(call, answer, action):
-        sent = bot.send_message(call.message.chat.id, answer)
+        sent = bot.send_message(call.message.chat.id, answer,
+                                reply_markup=helpers.returntomainmenu_keyboard(current_bot=current_bot))
         bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.id,
                                       reply_markup=helpers.returntomainmenu_keyboard())
+        bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
         bot.clear_step_handler(call.message)
         bot.register_next_step_handler(sent, get_trouble, action=action)
 
@@ -131,6 +131,7 @@ def init_bot(bot):
         consult_processing(call, answer, action)
 
 
+
     @bot.callback_query_handler(func=lambda call: True)
     def query_handler(call):
         if str(call.message.chat.id).startswith('-'):
@@ -139,109 +140,120 @@ def init_bot(bot):
         try:
             chat_id = call.message.chat.id
             bot.answer_callback_query(callback_query_id=call.id)
-            if call.data == 'contact':
-                if current_bot:
+            if current_bot:
+                if call.data == 'contact':
+                    # показать контакты
                     answer = current_bot.contacts
                     bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                    bot.delete_message(chat_id=chat_id, message_id=call.message.id)
                     bot.send_message(call.message.chat.id, answer,
-                                     reply_markup=helpers.returntomainmenu_keyboard(
-                                         show_website=True, current_bot=current_bot), parse_mode="HTML")
-                #todo else return menu
+                                         reply_markup=helpers.returntomainmenu_keyboard(
+                                             show_website=True, current_bot=current_bot), parse_mode="HTML")
+                elif call.data in current_bot.menu_as_dict().keys():
+                    # нажали на пункт главного меню
+                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                    bot.delete_message(chat_id=chat_id, message_id=call.message.id)
+                    subcategories = list(current_bot.mainmenu_set.filter(button_name=call.data).values_list(
+                        'subcategories__button_name', 'subcategories__interface_name'))
+                    if len(subcategories) == 1:
+                        # если в пункте главного меню одна подкатегория - сразу выполняем обработку подкатегории
+                        subcategory_proceed(call, subcategories[0][0])
+                    else:
+                        # иначе выводим список подкатегорий
+                        subcategories = {button: interface for button, interface in subcategories}
+                        subcategories['menu'] = 'Назад'
+                        bot.send_message(chat_id, f"Выберите тему:",
+                                         reply_markup=helpers.render_keyboard(subcategories))
 
-            elif call.data in current_bot.menu_as_dict().keys():
-                # bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                subcategories = list(current_bot.mainmenu_set.filter(button_name=call.data).values_list(
-                    'subcategories__button_name', 'subcategories__interface_name'))
-                if len(subcategories) == 1:
-                    subcategory_proceed(call, subcategories[0][0])
+                elif call.data in current_bot.subcategories(kind='consult').keys():
+                    # если нажали на подкатегория меню
+                    subcategory_proceed(call, call.data)
+                elif call.data in constants.STATUS.keys():
+                    # обработка отношения к вере
+                    account = models.Account.objects.filter(chat_id=chat_id).first()
+                    if not account:
+                        return
+                    account.faith_status = call.data
+                    account.save()
+
+                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                    bot.delete_message(chat_id=chat_id, message_id=call.message.id)
+                    bot.send_message(chat_id,
+                                     f'Приятно познакомиться, {account.name}! 😉'
+                                     f'Спасибо, что уделили время и представились 🙏\n\n'
+                                     f'❓На какую тему Ваш вопрос? 👇\n(Все консультации для Вас бесплатны 🔥)',
+                                     reply_markup=helpers.render_keyboard(current_bot.menu_as_dict(), True))
+
+                elif call.data.startswith('ignored_'):
+                    # если менеджер не связался с пользователем по вопросу (нажимает пользователь)
+                    message_pk = helpers.get_id(call.data)
+
+                    message_obj = models.Message.objects.filter(pk=message_pk).first()
+                    message_obj.request_status = 4
+                    message_obj.save()
+
+                    msg, k_wargs = forward_trouble(message_obj.account, call.message, message_obj.subcategory, admin=True)
+
+                    bot.send_message(models.UppperSettings.objects.filter().first().superadmin.chat_id, msg, **k_wargs)
+                    bot.send_message(current_bot.pastor.chat_id, msg, **k_wargs)
+                    bot.forward_message(current_bot.pastor.chat_id, chat_id,
+                                        message_id=message_obj.last_msg_id)
+
+                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                    bot.delete_message(chat_id=chat_id, message_id=call.message.id)
+                    answer = 'Ваше обращение отправлено специалисту повторно. Просим прощения за задержку консультации 😔🌷'
+                    bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True,
+                                                                                                     current_bot=current_bot))
+                    logging.warning(f'{datetime.now} - Ignored Button - processed')
+
+                elif call.data.startswith('answered_'):
+                    # если менеджер связался с пользователем по вопросу (нажимает пользователь)
+                    message_pk = helpers.get_id(call.data)
+
+                    message_obj = models.Message.objects.filter(pk=message_pk).first()
+                    message_obj.request_status = 3
+                    message_obj.save()
+
+                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                    bot.delete_message(chat_id=chat_id, message_id=call.message.id)
+                    answer = ('Благодарим за доверие к нам в Вашей ситуации! 🙏'
+                              'При возникновении вопросов всегда готовы Вам помочь! 💒\n\n'
+                              'Пусть Господь благословит Вас!')
+                    bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True,
+                                                                                                     current_bot=current_bot))
+                    logging.warning(f'{datetime.now} - Answered Button - processed')
+                elif call.data.startswith('private_'):
+                    # если контакт пользователя приватный и менеджер не может с ним связаться - запрашиваем доп контакт, нажимает менеджер
+                    btn_id = call.data
+                    manager_chat = call.message.chat.id
+                    chat_id = helpers.get_id(btn_id)
+                    get_contact = bot.send_message(
+                        chat_id,
+                        f'⚠️ Ваш профиль в telegram приватный. \n\nНапишите, пожалуйста, в ответе одним сообщением '
+                        f'ваш номер телефона или email для связи. 👇👇👇',
+                    )
+                    bot.register_next_step_handler(get_contact, additional_contact, manager_chat=manager_chat)
+                    bot.edit_message_reply_markup(chat_id=manager_chat, message_id=call.message.id, reply_markup=None)
+                    # не удаляем предыдущее сообщение, так как оно важно для истории сообщений в чате
                 else:
-                    subcategories = {button: interface for button, interface in subcategories}
-                    bot.send_message(chat_id, f"qwe",
-                                     reply_markup=helpers.render_keyboard(subcategories))
-
-            elif call.data in current_bot.subcategories(kind='consult').keys():
-                subcategory_proceed(call, call.data)
-            # elif call.data == 'menu':
-            #     account = models.Account.objects.filter(chat_id=chat_id).first()
-            #     if not account.faith_status:
-            #         bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-            #         bot.send_message(chat_id, f"❓ {account.name}, посещаете ли Вы церковь?",
-            #                          reply_markup=helpers.render_keyboard(constants.STATUS))
-            #     else:
-            #         bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-            #         menu = current_bot.menu_as_dict()
-            #         bot.send_message(chat_id, 'Выберите тему для Вашего обращения',
-            #                          reply_markup=helpers.render_keyboard(menu, True))
-            elif call.data in constants.STATUS.keys():
-                account = models.Account.objects.filter(chat_id=chat_id).first()
-                if not account:
-                    return
-                account.faith_status = call.data
-                account.save()
-
-                bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                bot.send_message(chat_id,
-                                 f'Приятно познакомиться, {account.name}! 😉'
-                                 f'Спасибо, что уделили время и представились 🙏\n\n'
-                                 f'❓На какую тему Ваш вопрос? 👇\n(Все консультации для Вас бесплатны 🔥)',
-                                 reply_markup=helpers.render_keyboard(settings.ACTIONS, True))
-
-            elif call.data.startswith('ignored_'):
-                message_pk = helpers.get_id(call.data)
-
-                message_obj = models.Message.objects.filter(pk=message_pk).first()
-                message_obj.request_status = 4
-                message_obj.save()
-
-                msg, k_wargs = forward_trouble(message_obj.account, call.message, message_obj.subcategory, admin=True)
-
-                bot.send_message(models.UppperSettings.objects.filter().first().chat_id, msg, **k_wargs)
-                bot.send_message(current_bot.pastor.chat_id, msg, **k_wargs)
-                bot.forward_message(current_bot.pastor.chat_id, chat_id,
-                                    message_id=message_obj.last_msg_id)
-
-                bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                answer = 'Ваше обращение отправлено специалисту повторно. Просим прощения за задержку консультации 😔🌷'
-                bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True,
-                                                                                                 current_bot=current_bot))
-                logging.warning(f'{datetime.now} - Ignored Button - processed')
-
-            elif call.data.startswith('answered_'):
-                message_pk = helpers.get_id(call.data)
-
-                message_obj = models.Message.objects.filter(pk=message_pk).first()
-                message_obj.request_status = 3
-                message_obj.save()
-
-                bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                answer = ('Благодарим за доверие к нам в Вашей ситуации! 🙏'
-                          'При возникновении вопросов всегда готовы Вам помочь! 💒\n\n'
-                          'Пусть Господь благословит Вас!')
-                bot.send_message(chat_id, answer, reply_markup=helpers.returntomainmenu_keyboard(show_website=True,
-                                                                                                 current_bot=current_bot))
-                logging.warning(f'{datetime.now} - Answered Button - processed')
-            elif call.data.startswith('private_'):
-                btn_id = call.data
-                manager_chat = call.message.chat.id
-                chat_id = helpers.get_id(btn_id)
-                get_contact = bot.send_message(
-                    chat_id,
-                    f'⚠️ Ваш профиль в telegram приватный. \n\nНапишите, пожалуйста, в ответе одним сообщением '
-                    f'ваш номер телефона или email для связи. 👇👇👇',
-                )
-                bot.register_next_step_handler(get_contact, additional_contact, manager_chat=manager_chat)
-                bot.edit_message_reply_markup(chat_id=manager_chat, message_id=call.message.id, reply_markup=None)
+                    # отображаем главное меню или спрашиваем статус веры, если нажата кнопка "главное меню" или пришла необрабатываемая команда
+                    bot.clear_step_handler(call.message)
+                    account = models.Account.objects.filter(chat_id=chat_id).first()
+                    if not account.faith_status:
+                        # если по каким-то причинам оборвался процесс знакомства и пользователь переходит к главному меню
+                        bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                        bot.delete_message(chat_id=chat_id, message_id=call.message.id)
+                        bot.send_message(chat_id, f"❓ {account.name}, посещаете ли Вы церковь?",
+                                         reply_markup=helpers.render_keyboard(constants.STATUS))
+                    else:
+                        bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
+                        # не удаляем предыдущее сообщение, чтобы у пользователя осталось предыдущее сообщение в истории
+                        # (например, если это было обращение и в ответ бот отправил статус заявки, пользователю важно ее видеть)
+                        menu = current_bot.menu_as_dict()
+                        bot.send_message(chat_id, 'Главное меню',
+                                         reply_markup=helpers.render_keyboard(menu, True))
             else:
-                account = models.Account.objects.filter(chat_id=chat_id).first()
-                if not account.faith_status:
-                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                    bot.send_message(chat_id, f"❓ {account.name}, посещаете ли Вы церковь?",
-                                     reply_markup=helpers.render_keyboard(constants.STATUS))
-                else:
-                    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
-                    menu = current_bot.menu_as_dict()
-                    bot.send_message(chat_id, 'Выберите тему для Вашего обращения',
-                                     reply_markup=helpers.render_keyboard(menu, True))
+                return
         except Exception as err:
             logging.error(f'{datetime.now()} - {helpers._get_detail_exception_info(err)}')
 

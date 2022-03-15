@@ -2,8 +2,6 @@ from django.db import models
 from django.contrib.auth.models import User
 # from django.contrib.postgres.fields import JSONField
 
-import os
-from redis import Redis
 from tmbot import constants
 
 
