@@ -29,9 +29,10 @@ class Settings(models.Model):
     pastor = models.ForeignKey('Account', on_delete=models.CASCADE, verbose_name="Пастор", related_name='pastor')
     bot_token = models.CharField(max_length=255, default=None, null=True, blank=True, verbose_name="bot token")
     contacts = models.TextField(null=True, blank=True, verbose_name="Текст с контактами")
-    website = models.TextField(default='church22.ru', blank=True, verbose_name="Текст с контактами")
+    website = models.TextField(default='church22.ru', blank=True, verbose_name="Сайт")
     greeting = models.TextField(null=True, blank=True, verbose_name="Текст приветствия")
     greeting_cover = models.FileField(upload_to='static/', blank=True, default=None, verbose_name="Обложка")
+
 
     class Meta:
         verbose_name_plural = "Настройки города"
@@ -49,13 +50,14 @@ class Settings(models.Model):
         return {key: value
                 for key, value in SubCategories.objects.filter(**params).values_list('button_name', 'interface_name').order_by("order")}
 
-
 class Account(models.Model):
     name = models.CharField(max_length=50, verbose_name="Имя пользователя")
     tm_id = models.CharField(max_length=20, verbose_name="ID в телеграме")
     chat_id = models.CharField(max_length=20, verbose_name="Chat ID в телеграме")
     faith_status = models.PositiveSmallIntegerField(choices=constants.FAITH_STATUS, default=0,verbose_name='Отношение к вере')
     contact = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name="Дополнительный контакт")
+    cities = models.ManyToManyField('Settings', null=True, blank=True, verbose_name="Город")
+
 
     class Meta:
         verbose_name = "Пользователь"

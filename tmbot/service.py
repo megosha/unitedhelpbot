@@ -118,9 +118,9 @@ def init_bot(bot):
     def consult_processing(call, answer, action):
         sent = bot.send_message(call.message.chat.id, answer,
                                 reply_markup=helpers.returntomainmenu_keyboard(current_bot=current_bot))
-        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.id,
-                                      reply_markup=helpers.returntomainmenu_keyboard())
-        bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
+        # bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.id,
+        #                               reply_markup=helpers.returntomainmenu_keyboard())
+        # bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
         bot.clear_step_handler(call.message)
         bot.register_next_step_handler(sent, get_trouble, action=action)
 
@@ -252,6 +252,8 @@ def init_bot(bot):
                         menu = current_bot.menu_as_dict()
                         bot.send_message(chat_id, 'Главное меню',
                                          reply_markup=helpers.render_keyboard(menu, True))
+                    if not account.cities.filter(city=current_bot.city).exists():
+                        account.cities.add(current_bot)
             else:
                 return
         except Exception as err:
@@ -291,8 +293,11 @@ def init_bot(bot):
         if not account.exists():
             get_name(message)
         else:
+            acc = account.first()
+            if not acc.cities.filter(city=current_bot.city).exists():
+                acc.cities.add(current_bot)
             if not account.first().faith_status:
-                bot.send_message(message.chat.id, f"❓ {account.first().name}, посещаете ли Вы церковь?",
+                bot.send_message(message.chat.id, f"❓ {acc.name}, посещаете ли Вы церковь?",
                                  reply_markup=helpers.render_keyboard(constants.STATUS))
             else:
                 menu = current_bot.menu_as_dict()
