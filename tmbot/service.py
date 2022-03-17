@@ -13,12 +13,10 @@ from tmbot import helpers
 from time import sleep
 
 
-BASE_DIR = settings.BASE_DIR
-logfile = str(BASE_DIR / 'logs' / 'main.log')
-logging.basicConfig(filename=logfile, filemode='a')
+def init_bot(bot, city_name):
+    logfile = str(settings.BASE_DIR / 'logs' / f'main_{city_name}.log')
+    logging.basicConfig(filename=logfile, filemode='a')
 
-
-def init_bot(bot):
     current_bot = models.Settings.objects.filter(bot_token=bot.token).first()
     #todo validate current bot instance and existance else send message that bot works incorrect
     def get_name(message, error=False):
