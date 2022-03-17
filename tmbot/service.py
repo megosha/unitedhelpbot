@@ -316,9 +316,9 @@ def init_bot(bot, city_name):
                   'date_create__lte':datetime.now()-timedelta(days=1),
                   'request_status':2,
                   }
-        messages = models.Message.objects.filter(**params)
 
         while True:
+            messages = models.Message.objects.filter(**params)
             logging.warning(f'{datetime.now()} - start feedback_checker cycle')
 
             for message in messages:
