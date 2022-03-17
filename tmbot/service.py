@@ -248,7 +248,7 @@ def init_bot(bot):
                     else:
                         bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
                         # не удаляем предыдущее сообщение, чтобы у пользователя осталось предыдущее сообщение в истории
-                        # (напрaccимер, если это было обращение и в ответ бот отправил статус заявки, пользователю важно ее видеть)
+                        # (например, если это было обращение и в ответ бот отправил статус заявки, пользователю важно ее видеть)
                         menu = current_bot.menu_as_dict()
                         bot.send_message(chat_id, 'Главное меню',
                                          reply_markup=helpers.render_keyboard(menu, True))
