@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-# from django.contrib.postgres.fields import JSONField
+from django.utils import timezone
 
 from tmbot import constants
 
@@ -56,7 +56,7 @@ class Account(models.Model):
     chat_id = models.CharField(max_length=20, verbose_name="Chat ID в телеграме")
     faith_status = models.PositiveSmallIntegerField(choices=constants.FAITH_STATUS, default=0,verbose_name='Отношение к вере')
     contact = models.CharField(max_length=200, default="", null=True, blank=True, verbose_name="Дополнительный контакт")
-    cities = models.ManyToManyField('Settings', null=True, blank=True, verbose_name="Город")
+    cities = models.ManyToManyField('Settings', blank=True, verbose_name="Город")
 
 
     class Meta:
@@ -108,7 +108,7 @@ class Message(models.Model):
     subcategory = models.ForeignKey(SubCategories, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Подкатегория")
     last_msg_id = models.CharField(max_length=20, verbose_name="ID последнего сообщения в телеграме")
     last_message = models.CharField(max_length=20, verbose_name="Тело последнего сообщения в телеграме")
-    date_create = models.DateTimeField(auto_now=True)
+    date_create = models.DateTimeField(default=timezone.now)
     request_status = models.PositiveSmallIntegerField(verbose_name="Код статуса ответа на обращение", choices=constants.REQUEST_STATUS)
 
     class Meta:

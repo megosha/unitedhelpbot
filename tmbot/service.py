@@ -195,9 +195,14 @@ def init_bot(bot):
                     msg, k_wargs = forward_trouble(message_obj.account, call.message, message_obj.subcategory, admin=True)
 
                     bot.send_message(models.UppperSettings.objects.filter().first().superadmin.chat_id, msg, **k_wargs)
-                    bot.send_message(current_bot.pastor.chat_id, msg, **k_wargs)
-                    bot.forward_message(current_bot.pastor.chat_id, chat_id,
+                    try:
+                        bot.send_message(current_bot.pastor.chat_id, msg, **k_wargs)
+                        bot.forward_message(current_bot.pastor.chat_id, chat_id,
                                         message_id=message_obj.last_msg_id)
+                    except Exception as error:
+                        bot.send_message(models.UppperSettings.objects.filter().first().superadmin.chat_id,
+                                         f'ошибка отправки сообщения пастору: {error}',
+                                         **k_wargs)
 
                     bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
                     bot.delete_message(chat_id=chat_id, message_id=call.message.id)
