@@ -17,7 +17,7 @@ def render_keyboard(params: dict, standart=False):
     for k, v in params.items():
         kboard.add(telebot.types.InlineKeyboardButton(text=v, callback_data=k))
     if standart:
-        kboard.add(telebot.types.InlineKeyboardButton(text='Показать контакты', callback_data='contact'))
+        kboard.add(telebot.types.InlineKeyboardButton(text='☎️ Показать контакты', callback_data='contact'))
     return kboard
 
 
