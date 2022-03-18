@@ -13,12 +13,15 @@ from tmbot import helpers
 from time import sleep
 
 
+def validated_bot(bot):
+    return isinstance(bot, models.Settings)
+
 def init_bot(bot, city_name):
     logfile = str(settings.BASE_DIR / 'logs' / f'main_{city_name}.log')
     logging.basicConfig(filename=logfile, filemode='a')
 
     current_bot = models.Settings.objects.filter(bot_token=bot.token).first()
-    #todo validate current bot instance and existance else send message that bot works incorrect
+
     def get_name(message, error=False):
         if error:
             msg = "Пожалуйста, укажите Ваше имя корректно (имя должно содержать только буквы)"
@@ -281,6 +284,15 @@ def init_bot(bot, city_name):
         logging.warning(f'{datetime.now} - clicked start Button')
 
         if message.from_user.is_bot:
+            return
+
+        if not validated_bot(current_bot):
+            bot.send_message(message.chat.id, f"К сожалению, в данный момент бот не работает.")
+            try:
+                superadmin = models.UppperSettings.objects.filter().first()
+                bot.send_message(superadmin.superadmin.chat_id, f"Не найден бот {current_bot} /start")
+            except:
+                pass
             return
 
         local_bot = models.Settings.objects.filter(bot_token=bot.token).first()
