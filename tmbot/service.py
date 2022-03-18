@@ -256,7 +256,7 @@ def init_bot(bot, city_name):
                         # не удаляем предыдущее сообщение, чтобы у пользователя осталось предыдущее сообщение в истории
                         # (например, если это было обращение и в ответ бот отправил статус заявки, пользователю важно ее видеть)
                         menu = current_bot.menu_as_dict()
-                        bot.send_message(chat_id, 'Главное меню',
+                        bot.send_message(chat_id, '🔸 ГЛАВНОЕ МЕНЮ 🔸',
                                          reply_markup=helpers.render_keyboard(menu, True))
                     if not account.cities.filter(city=current_bot.city).exists():
                         account.cities.add(current_bot)
