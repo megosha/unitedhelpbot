@@ -363,4 +363,13 @@ def init_bot(bot, city_name):
     logging.warning(f'{datetime.now()} - starting THREAD')
     Thread(target=feedback_checker).start()
     logging.warning(f'{datetime.now()} - starting BOT')
-    bot.polling()
+
+    while True:
+        logging.warning(f'{datetime.now()} - starting BOT')
+        try:
+            bot.polling(none_stop=True)
+        except Exception as err:
+            logging.warning(f'{datetime.now()} - {helpers._get_detail_exception_info(err)}')
+            sleep(5)
+
+    # bot.polling()
