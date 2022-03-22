@@ -331,7 +331,7 @@ def init_bot(bot, city_name):
 
         while True:
             messages = models.Message.objects.filter(**params)
-            logging.warning(f'{datetime.now()} - start feedback_checker cycle')
+            logging.warning(f'{datetime.now()} - start feedback_checker cycle - found {messages.count()} messages')
 
             for message in messages:
                 chat_id = message.account.chat_id
@@ -349,7 +349,7 @@ def init_bot(bot, city_name):
                                                   f'С Вами связались по Вашему обращению? (выберите соответствующий вариант ниже 👇)',
                                          reply_markup=helpers.render_keyboard(FEEDBACK))
                     except telebot.apihelper.ApiTelegramException:
-                        pass
+                        logging.warning(f'{datetime.now()} - message sending error - {message.pk} pk')
 
                     message.request_status = 5
                     message.save()
