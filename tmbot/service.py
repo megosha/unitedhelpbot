@@ -338,7 +338,8 @@ def init_bot(bot, city_name):
                 name = message.account.name
                 subcategory_title = message.subcategory.interface_name
 
-                expect_answer = models.Message.objects.filter(account=message.account, request_status=5).exists()
+                expect_answer = models.Message.objects.filter(subcategory__parent_category__city__city=current_bot.city,
+                                                              account=message.account, request_status=5).exists()
                 if not expect_answer:
                     FEEDBACK = {f"answered_{message.pk}": "✅  Да, со мной связались",
                                 f"ignored_{message.pk}": "❌  Нет, я не получил ответа"
