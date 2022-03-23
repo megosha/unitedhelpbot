@@ -1,5 +1,5 @@
 import logging
-from asyncio import sleep
+from time import sleep
 from datetime import datetime, timedelta
 
 import telebot
@@ -58,8 +58,7 @@ class Command(BaseCommand):
                         logging.warning(
                             f'{datetime.now()} - asking for feedback - USER_ID {message.account.tm_id} - '
                             f'CHAT_ID - {chat_id}')
-                logging.warning(
-                f'{datetime.now()} - sleep for {sleep_time} seconds')
+            logging.warning(f'{datetime.now()} - sleep for {sleep_time} seconds')
             sleep(sleep_time)
 
 
