@@ -32,7 +32,7 @@ class Command(BaseCommand):
                       }
 
                 messages = models.Message.objects.filter(**params)
-                logging.warning(f'{datetime.now()} - start feedback_checker cycle - found {messages.count()} messages')
+                logging.warning(f'{datetime.now()} - start feedback_checker cycle - found {messages.count()} messages - {current_bot.city}')
 
                 for message in messages:
                     chat_id = message.account.chat_id
