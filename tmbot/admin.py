@@ -44,7 +44,7 @@ class SubCategoriesAdmin(admin.ModelAdmin):
 
 @admin.register(models.Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = 'date_create', 'account', 'subcategory', 'request_status',
-    list_display_links = 'date_create', 'account',
+    list_display = 'pk', 'date_create', 'account', 'subcategory', 'request_status',
+    list_display_links = 'pk', 'date_create', 'account',
     list_filter = 'subcategory__parent_category__city','request_status', 'subcategory',
     # readonly_fields = 'account', 'last_msg_id', 'subcategory', 'last_message', 'date_create', 'request_status'

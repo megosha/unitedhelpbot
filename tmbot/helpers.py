@@ -4,10 +4,6 @@ import sys
 import telebot
 
 
-def get_env_value(key):
-    return os.environ.get(key)
-
-
 def name_is_valid(name: str):
     return name.replace('-', '').isalpha() and len(name) <= 100
 
