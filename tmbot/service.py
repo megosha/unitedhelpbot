@@ -361,9 +361,8 @@ def init_bot(bot, city_name):
                 f'{datetime.now()} - sleep for {sleep_time} seconds')
             sleep(sleep_time)
 
-    logging.warning(f'{datetime.now()} - starting THREAD')
-    Thread(target=feedback_checker).start()
-    logging.warning(f'{datetime.now()} - starting BOT')
+    # logging.warning(f'{datetime.now()} - starting THREAD')
+    # Thread(target=feedback_checker).start()
 
     while True:
         logging.warning(f'{datetime.now()} - starting BOT')
