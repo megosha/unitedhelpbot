@@ -163,7 +163,7 @@ def init_bot(bot, city_name):
                     else:
                         # иначе выводим список подкатегорий
                         subcategories = {button: interface for button, interface in subcategories}
-                        subcategories['menu'] = 'Назад'
+                        subcategories['backtomenu'] = 'Назад'
                         bot.send_message(chat_id, f"Выберите тему:",
                                          reply_markup=helpers.render_keyboard(subcategories))
 
@@ -256,6 +256,8 @@ def init_bot(bot, city_name):
                         bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
                         # не удаляем предыдущее сообщение, чтобы у пользователя осталось предыдущее сообщение в истории
                         # (например, если это было обращение и в ответ бот отправил статус заявки, пользователю важно ее видеть)
+                        if call.data == 'backtomenu':
+                            bot.delete_message(chat_id=chat_id, message_id=call.message.id)
                         menu = current_bot.menu_as_dict()
                         bot.send_message(chat_id, '🔸 ГЛАВНОЕ МЕНЮ 🔸',
                                          reply_markup=helpers.render_keyboard(menu, True))
