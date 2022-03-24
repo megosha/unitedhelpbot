@@ -98,7 +98,7 @@ class SubCategories(models.Model):
     class Meta:
         verbose_name = "Подпункт меню"
         verbose_name_plural = "Подпункты меню"
-        unique_together = ['order', 'parent_category']
+        # unique_together = ['order', 'parent_category']
         ordering = ['pk']
 
     def __str__(self):
