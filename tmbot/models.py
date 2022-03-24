@@ -107,7 +107,7 @@ class Message(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, verbose_name="Пользователь")
     subcategory = models.ForeignKey(SubCategories, null=True, blank=True, on_delete=models.DO_NOTHING, verbose_name="Подкатегория")
     last_msg_id = models.CharField(max_length=20, verbose_name="ID последнего сообщения в телеграме")
-    last_message = models.CharField(max_length=20, verbose_name="Тело последнего сообщения в телеграме")
+    last_message = models.TextField(null=True, blank=True, verbose_name="Тело последнего сообщения в телеграме")
     date_create = models.DateTimeField(default=timezone.now)
     request_status = models.PositiveSmallIntegerField(verbose_name="Код статуса ответа на обращение", choices=constants.REQUEST_STATUS)
 
