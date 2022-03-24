@@ -77,6 +77,7 @@ class MainMenu(models.Model):
     class Meta:
         verbose_name = "Главное меню"
         verbose_name_plural = "Главное меню"
+        ordering = ['pk']
 
 
     def __str__(self):
@@ -88,7 +89,7 @@ class SubCategories(models.Model):
                                         verbose_name="Относится к пункту главного меню")
     button_name = models.CharField(max_length=20, verbose_name="Ключ (англ)")
     interface_name = models.CharField(max_length=50, verbose_name="Наименование пункта меню (рус)")
-    order = models.PositiveSmallIntegerField(verbose_name="порядок отображения в Телеграме")
+    order = models.PositiveSmallIntegerField(default=10, verbose_name="порядок отображения в Телеграме")
     manager = models.ForeignKey(Account, null=True, blank=True, on_delete=models.SET_NULL,
                                 verbose_name="Менеджер категории")
     kind = models.CharField(max_length=20, default='consult', choices=constants.ACTION_TYPE,
@@ -98,6 +99,7 @@ class SubCategories(models.Model):
         verbose_name = "Подпункт меню"
         verbose_name_plural = "Подпункты меню"
         unique_together = ['order', 'parent_category']
+        ordering = ['pk']
 
     def __str__(self):
         return f'{self.parent_category.interface_name} - {self.interface_name} - {self.parent_category.city}'
