@@ -154,7 +154,8 @@ def init_bot(bot, city_name):
                     # нажали на пункт главного меню
                     bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.id, reply_markup=None)
                     bot.delete_message(chat_id=chat_id, message_id=call.message.id)
-                    subcategories = list(current_bot.mainmenu_set.filter(button_name=call.data).order_by('order').values_list(
+                    subcategories = list(current_bot.mainmenu_set.filter(
+                        button_name=call.data).order_by('subcategories__order').values_list(
                         'subcategories__button_name', 'subcategories__interface_name'))
                     if len(subcategories) == 1:
                         # если в пункте главного меню одна подкатегория - сразу выполняем обработку подкатегории
