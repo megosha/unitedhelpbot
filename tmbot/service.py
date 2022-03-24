@@ -52,7 +52,7 @@ def init_bot(bot, city_name):
         last_message = account.message_set.filter(subcategory=action).last()
         if admin:
             msg = (f'❌ ПОЛЬЗОВАТЕЛЬ НЕ ПОЛУЧИЛ КОНСУЛЬТАЦИЮ!\n'
-                   f'Заявка №: {chat_id}_{last_message.last_msg_id}"\n'
+                   f'Заявка №: {last_message.pk}"\n'
                    f'Пользователь: @{message.chat.username}\n'
                    f'Имя: {account.name}\n'
                    f'Статус (верующий/неверующий): {account.get_faith_status_display()}\n'
@@ -61,7 +61,7 @@ def init_bot(bot, city_name):
                    f'Дата обращения: {last_message.date_create}\n'
                    f'Сообщение: {last_message.last_message}')
         else:
-            msg = (f'Заявка №: "{chat_id}_{last_message.last_msg_id}"\n'
+            msg = (f'Заявка №: "{last_message.pk}"\n'
            f'Пользователь: @{message.chat.username}\n'
            f'Имя: {account.name}\n'
            f'Статус (верующий/неверующий): {account.get_faith_status_display()}\n'
