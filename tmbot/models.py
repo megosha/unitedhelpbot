@@ -77,7 +77,7 @@ class MainMenu(models.Model):
     class Meta:
         verbose_name = "Главное меню"
         verbose_name_plural = "Главное меню"
-        ordering = ['pk']
+        ordering = ['order']
 
 
     def __str__(self):
@@ -99,7 +99,7 @@ class SubCategories(models.Model):
         verbose_name = "Подпункт меню"
         verbose_name_plural = "Подпункты меню"
         # unique_together = ['order', 'parent_category']
-        ordering = ['pk']
+        ordering = ['order']
 
     def __str__(self):
         return f'{self.parent_category.interface_name} - {self.interface_name} - {self.parent_category.city}'
