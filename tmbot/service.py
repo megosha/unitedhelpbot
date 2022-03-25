@@ -128,7 +128,7 @@ def init_bot(bot, city_name):
     def subcategory_proceed(call, data):
         answer = f'Вы выбрали пункт: "{current_bot.subcategories()[data]}"\n\n' \
                  f'📨 Опишите, пожалуйста, свою ситуацию в ответе ОДНИМ текстовым сообщением 👇👇👇'
-        action = models.SubCategories.objects.filter(button_name=data).first()
+        action = models.SubCategories.objects.filter(button_name=data, parent_category__city=current_bot).first()
         consult_processing(call, answer, action)
 
 
