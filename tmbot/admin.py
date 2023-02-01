@@ -25,7 +25,7 @@ class SettingsAdmin(admin.ModelAdmin):
 class AccountAdmin(admin.ModelAdmin):
     list_display = ['name', 'tm_id', 'chat_id', 'contact']
     list_filter = ['faith_status', 'cities']
-    readonly_fields = ['tm_id', 'chat_id', 'faith_status',]
+    #readonly_fields = ['tm_id', 'chat_id', 'faith_status',]
 
 
 @admin.register(models.MainMenu)
